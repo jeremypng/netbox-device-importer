@@ -1,0 +1,2 @@
+﻿device_name,device_role,manufacturer,device_type,serial_number,site,location,tenant,mac_address,ip_address,vrf,ip_tenant
+CCTV-C.S-Sample,Stadium CCTV Cameras,Avigilon,4C-H4A-3MH-18,10200905555,Protective Stadium,Level 300,BJCC-Services,00:18:85:31:BE:EF,192.168.128.20/23,Security,BJCC-Services
