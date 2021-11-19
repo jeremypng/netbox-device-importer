@@ -57,7 +57,7 @@ def assign_mac_ip(mac_address, vrf, ip_address, int_name, dev_name, nb_dev, tena
         nb_dev_eth0.save()
         print(f"Assigned mac {nb_dev_eth0.mac_address} to device {nb_dev.name}")
     
-    if ignore_ip = False:
+    if ignore_ip == False:
         vrf = nb.ipam.vrfs.get(name=vrf)
         if vrf is None:
             print(f"VRF {vrf} must exist in Netbox")
