@@ -49,7 +49,7 @@ def check_create_device_type(mfg, dev_type_name):
         print(f"Created device type interface {dev_type_eth0.name}")
     return dev_type
 
-def assign_mac_ip(mac_address, vrf, ip_address, int_name, dev_name, nb_dev, tenant, override):
+def assign_mac_ip(mac_address, vrf, ip_address, int_name, dev_name, nb_dev, tenant, override, ignore_ip=False):
     # Assign mac address to interface
     if len(mac_address) == 17:
         nb_dev_eth0 = nb.dcim.interfaces.get(device_id=nb_dev.id,name=int_name)
@@ -57,50 +57,52 @@ def assign_mac_ip(mac_address, vrf, ip_address, int_name, dev_name, nb_dev, tena
         nb_dev_eth0.save()
         print(f"Assigned mac {nb_dev_eth0.mac_address} to device {nb_dev.name}")
     
-    vrf = nb.ipam.vrfs.get(name=vrf)
-    if vrf is None:
-        print(f"VRF {vrf} must exist in Netbox")
-        return
+    if ignore_ip = False:
+        vrf = nb.ipam.vrfs.get(name=vrf)
+        if vrf is None:
+            print(f"VRF {vrf} must exist in Netbox")
+            return
 
-    # Check for existing IP Assignment
-    ip_list = []
-    ip_query = nb.ipam.ip_addresses.filter(device_id=nb_dev.id)
-    for ip in ip_query:
-        if ip.assigned_object.name == int_name:
-            ip_list.append(ip)
-    if len(ip_list)>0 and override == False:
-        print(f"{len(ip_list)} IP Address(es) already exist for {dev_name} in Netbox")
-        return
-    elif len(ip_list)==1 and override == True:
-        ip_list[0].delete()
-        print(f"Overriding current IP with {ip_address} for {nb_dev.name}")
-    
-    # Check for dangling IP address
-    unassigned_ip = nb.ipam.ip_addresses.get(address=ip_address,vrf_id=vrf.id)
-    if unassigned_ip:
-        unassigned_ip.assigned_object_id = nb_dev_eth0.id
-        unassigned_ip.assigned_object_type = "dcim.interface"
-        unassigned_ip.tenant = tenant.id
-        unassigned_ip.save()
-        print(f"Updated unassigned ip {unassigned_ip.address} to {nb_dev.name}")
-    else:
-        nb_dev_ip = nb.ipam.ip_addresses.create(
-            address=ip_address,
-            vrf=vrf.id,
-            tenant=tenant.id,
-            status="active",
-            assigned_object_id=nb_dev_eth0.id,
-            assigned_object_type="dcim.interface"
-        )
-        print(f"Created ip {nb_dev_ip.address} for {nb_dev.name}")
+        # Check for existing IP Assignment
+        ip_list = []
+        ip_query = nb.ipam.ip_addresses.filter(device_id=nb_dev.id)
+        for ip in ip_query:
+            if ip.assigned_object.name == int_name:
+                ip_list.append(ip)
+        if len(ip_list)>0 and override == False:
+            print(f"{len(ip_list)} IP Address(es) already exist for {dev_name} in Netbox")
+            return
+        elif len(ip_list)==1 and override == True:
+            ip_list[0].delete()
+            print(f"Overriding current IP with {ip_address} for {nb_dev.name}")
+        
+        # Check for dangling IP address
+        unassigned_ip = nb.ipam.ip_addresses.get(address=ip_address,vrf_id=vrf.id)
+        if unassigned_ip:
+            unassigned_ip.assigned_object_id = nb_dev_eth0.id
+            unassigned_ip.assigned_object_type = "dcim.interface"
+            unassigned_ip.tenant = tenant.id
+            unassigned_ip.save()
+            print(f"Updated unassigned ip {unassigned_ip.address} to {nb_dev.name}")
+        else:
+            nb_dev_ip = nb.ipam.ip_addresses.create(
+                address=ip_address,
+                vrf=vrf.id,
+                tenant=tenant.id,
+                status="active",
+                assigned_object_id=nb_dev_eth0.id,
+                assigned_object_type="dcim.interface"
+            )
+            print(f"Created ip {nb_dev_ip.address} for {nb_dev.name}")
 
 @click.command("import-csv")
 @click.option("--file", required=True)
 @click.option("--override/--no-override", required=True, default=False)
 @click.option("--ignore-location/--no-ignore-location", required=False, default=False)
+@click.option("--ignore-ip/--no-ignore-ip", required=False, default=False)
 @click.option("--enable-wifi/--disable-wifi", required=False, default=False)
 @click.option("--set-mask", required=False, default=None)
-def import_csv(file, override, ignore_location, enable_wifi, set_mask):
+def import_csv(file, override, ignore_location, enable_wifi, set_mask, ignore_ip):
     with open(file, encoding='utf-8-sig') as csvfile:
         device_reader = csv.DictReader(csvfile, delimiter=",", dialect="excel")
         for device in device_reader:
@@ -169,7 +171,7 @@ def import_csv(file, override, ignore_location, enable_wifi, set_mask):
             
             
             # Assign Eth0 interface mac/ip
-            assign_mac_ip(device["mac_address"],device["vrf"],ip_address,"Eth0",device["device_name"],nb_dev,tenant,override)
+            assign_mac_ip(device["mac_address"],device["vrf"],ip_address,"Eth0",device["device_name"],nb_dev,tenant,override,ignore_ip)
             
             # Assign Wifi0 interface mac/ip if enabled
             if enable_wifi == True:
